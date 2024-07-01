@@ -9,10 +9,12 @@ import io.kinference.operator.OperatorSetRegistry
 import io.kinference.profiler.*
 import io.kinference.protobuf.message.ModelProto
 import io.kinference.ndarray.arrays.memory.AllocatorContext
+import io.kinference.ndarray.arrays.memory.ArrayContext
 import kotlinx.coroutines.withContext
 import kotlinx.atomicfu.atomic
+import kotlin.coroutines.coroutineContext
 
-class KIModel(val id: String, val name: String, val opSet: OperatorSetRegistry, val graph: KIGraph, val useAllocator: Boolean = true) : Model<KIONNXData<*>>, Profilable {
+class KIModel(val id: String, val name: String, val opSet: OperatorSetRegistry, val graph: KIGraph, val useAllocator: Boolean = false) : Model<KIONNXData<*>>, Profilable {
     private val inferenceCycleCounter = atomic(0L)
     private val profiles: MutableList<ProfilingContext> = ArrayList()
     override fun addProfilingContext(name: String): ProfilingContext = ProfilingContext(name).apply { profiles.add(this) }
@@ -25,17 +27,29 @@ class KIModel(val id: String, val name: String, val opSet: OperatorSetRegistry, 
             if (profile) addProfilingContext("Model $name") else null
         )
 
-        val results = if (useAllocator) {
-            withContext(AllocatorContext(id, getInferenceCycleId())) {
-                val coroutineContext = coroutineContext[AllocatorContext.Key]!!
-                val execResult = graph.execute(input, contexts)
-                execResult.forEach { it.markOutput() }
-                coroutineContext.closeAllocated()
-                execResult
+//        val results = if (useAllocator) {
+//            withContext(AllocatorContext(id, getInferenceCycleId())) {
+//                val coroutineContext = coroutineContext[AllocatorContext.Key]!!
+//                val execResult = graph.execute(input, contexts)
+//                execResult.forEach { it.markOutput() }
+//                coroutineContext.closeAllocated()
+//                execResult
+//            }
+//        } else {
+//            graph.execute(input, contexts)
+//        }
+
+        val arrayContext = coroutineContext[ArrayContext.Key]
+        val results = if (arrayContext == null) {
+            withContext(ArrayContext()) {
+                graph.execute(input, contexts).also { it.forEach { it.markOutput() } }
             }
         } else {
-            graph.execute(input, contexts)
+            graph.execute(input, contexts).also { it.forEach { it.markOutput() } }
         }
+//        val results = withContext(ArrayContext()) {
+//            graph.execute(input, contexts).also { it.forEach { it.markOutput() } }
+//        }
 
         return results.associateBy { it.name!! }
     }

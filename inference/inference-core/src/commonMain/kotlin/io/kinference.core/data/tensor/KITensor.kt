@@ -4,6 +4,7 @@ import io.kinference.core.CoreBackend
 import io.kinference.core.KIONNXDataArraysReleaser
 import io.kinference.data.ONNXTensor
 import io.kinference.ndarray.arrays.*
+import io.kinference.ndarray.arrays.memory.ArrayContext
 import io.kinference.ndarray.arrays.tiled.*
 import io.kinference.protobuf.FLOAT_TENSOR_TYPES
 import io.kinference.protobuf.message.TensorProto
@@ -13,11 +14,12 @@ import io.kinference.types.ValueTypeInfo
 
 //TODO: support segments
 //TODO: support external data
-class KITensor(name: String?, override val data: NDArrayCore, val info: ValueTypeInfo.TensorTypeInfo) : ONNXTensor<NDArrayCore, CoreBackend>(name, data), KIONNXDataArraysReleaser {
+class KITensor(name: String?, override val data: NDArrayCore, val info: ValueTypeInfo.TensorTypeInfo, private var arrayContext: ArrayContext? = null) : ONNXTensor<NDArrayCore, CoreBackend>(name, data), KIONNXDataArraysReleaser {
     constructor(data: NDArrayCore, info: ValueInfo) : this(info.name, data, info.typeInfo as ValueTypeInfo.TensorTypeInfo)
 
     override suspend fun close() {
-        data.close()
+        arrayContext?.returnNDArray(data)
+//        data.close()
     }
 
     override suspend fun clone(newName: String?): KITensor {
@@ -25,6 +27,7 @@ class KITensor(name: String?, override val data: NDArrayCore, val info: ValueTyp
     }
 
     override fun markOutput() {
+        arrayContext = null
         if (this.data is MemoryControlledArray)
             data.markOutput()
     }
@@ -47,7 +50,7 @@ class KITensor(name: String?, override val data: NDArrayCore, val info: ValueTyp
     override val backend = CoreBackend
 
     override fun rename(name: String): KITensor {
-        return KITensor(name, data, info)
+        return KITensor(name, data, info, arrayContext)
     }
 
     companion object {

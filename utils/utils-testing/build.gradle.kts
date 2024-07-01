@@ -21,7 +21,7 @@ kotlin {
                 implementation("com.squareup.okio:okio:${Versions.okio}")
 
 //                api(project(":ndarray:ndarray-api"))
-//                api(project(":ndarray:ndarray-core"))
+                api(project(":ndarray:ndarray-core"))
 
                 api(project(":inference:inference-api"))
 

@@ -152,47 +152,6 @@ abstract class Graph<T : ONNXData<*, *>> protected constructor(
         return _operators.count { it.inputs.contains(name) }
     }
 
-    /*fun mergeOperators(names: List<String>, to: Operator<T, T>) {
-        fun MutableList<Operator<T, T>>.removeOperator(i: Int) {
-            this.removeAt(i)
-            valueOrderInfo.decOrderFrom(i)
-        }
-
-        fun MutableList<Operator<T, T>>.addOperator(i: Int, op: Operator<T, T>) {
-            this.add(i, op)
-            valueOrderInfo.incOrderFrom(i)
-        }
-
-        val namesToRemove = names.toHashSet()
-        val newOperators = ArrayList(_operators)
-        var lastIdx = -1
-        val toRemove = ArrayList<Int>(0)
-        for (name in namesToRemove) {
-            val i = newOperators.indexOfFirst { it.name == name }
-            if (i == -1) error("Cannot remove $name operator. Operator $name was not found")
-            if (lastIdx < i) lastIdx = i
-            toRemove.add(i)
-        }
-        for (op in toRemove.sortedDescending()) newOperators.removeOperator(op)
-        newOperators.addOperator(lastIdx - namesToRemove.size + 1, to)
-
-        _operators = newOperators
-    }
-
-    private fun GraphValueOrderInfo.decOrderFrom(targetOrder: Int) {
-        for (name in this.names()) {
-            val order = valueOrderInfo.getOrder(name)
-            if (order >= targetOrder) valueOrderInfo.putOrder(name, order - 1)
-        }
-    }
-
-    private fun GraphValueOrderInfo.incOrderFrom(targetOrder: Int) {
-        for (name in this.names()) {
-            val order = valueOrderInfo.getOrder(name)
-            if (order <= targetOrder) valueOrderInfo.putOrder(name, order + 1)
-        }
-    }*/
-
     val availableInputs: List<String> = inputs.map { it.name }
 
     private suspend fun cleanupUntilOrder(context: GraphContext<T>, order: Int) {
@@ -206,7 +165,7 @@ abstract class Graph<T : ONNXData<*, *>> protected constructor(
         closeAll(operators)
     }
 
-    
+
     suspend fun execute(inputs: List<T>, _contexts: Contexts<T> = emptyContexts()): List<T> {
         //TODO: check that all inputs were set and not null
         val contexts = Contexts(makeContext(_contexts.graph), _contexts.profiling)

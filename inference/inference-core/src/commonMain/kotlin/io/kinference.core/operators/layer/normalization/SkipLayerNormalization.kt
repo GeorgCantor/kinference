@@ -7,10 +7,12 @@ import io.kinference.data.ONNXData
 import io.kinference.graph.Contexts
 import io.kinference.ndarray.arrays.FloatNDArray
 import io.kinference.ndarray.arrays.MutableFloatNDArray
+import io.kinference.ndarray.arrays.memory.ArrayContext
 import io.kinference.ndarray.arrays.pointers.*
 import io.kinference.operator.*
 import io.kinference.protobuf.message.AttributeProto
 import io.kinference.protobuf.message.TensorProto
+import kotlin.coroutines.coroutineContext
 import kotlin.math.sqrt
 
 sealed class SkipLayerNormalization(name: String, info: OperatorInfo, attributes: Map<String, Attribute<Any>>, inputs: List<String>, outputs: List<String>) : Operator<KITensor, KITensor>(name, info, attributes, inputs, outputs) {
@@ -104,8 +106,11 @@ class SkipLayerNormalizationVer1(name: String, attributes: Map<String, Attribute
 
 
     override suspend fun <D : ONNXData<*, *>> apply(contexts: Contexts<D>, inputs: List<KITensor?>): List<KITensor?> {
+        val arrayContext = coroutineContext[ArrayContext.Key]
+
         val input = inputs[0]!!.data as FloatNDArray
-        val output = MutableFloatNDArray(input.strides)
+        val output = arrayContext?.floatStorage?.getNDArray(input.strides, fillZeros = false) ?: MutableFloatNDArray(input.strides)
+
         input.normalize(
             skip = inputs[1]!!.data as FloatNDArray,
             gamma = inputs[2]!!.data as FloatNDArray,
@@ -114,6 +119,7 @@ class SkipLayerNormalizationVer1(name: String, attributes: Map<String, Attribute
             epsilon = epsilon,
             dst = output
         )
+
         return listOf(output.asTensor())
     }
 }

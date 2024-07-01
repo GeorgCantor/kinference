@@ -1,6 +1,7 @@
 package io.kinference.core.data.tensor
 
 import io.kinference.ndarray.arrays.*
+import io.kinference.ndarray.arrays.memory.ArrayContext
 import io.kinference.ndarray.extensions.concat
 import io.kinference.ndarray.extensions.splitWithAxis
 import io.kinference.primitives.types.DataType
@@ -8,9 +9,10 @@ import io.kinference.protobuf.resolveProtoDataType
 import io.kinference.types.TensorShape
 import io.kinference.types.ValueTypeInfo
 
-fun NDArrayCore.asTensor(name: String? = null) = KITensor(name, this, ValueTypeInfo.TensorTypeInfo(TensorShape(this.shape), type.resolveProtoDataType()))
+fun NDArrayCore.asTensor(name: String? = null, arrayContext: ArrayContext? = null) =
+    KITensor(name, this, ValueTypeInfo.TensorTypeInfo(TensorShape(this.shape), type.resolveProtoDataType()), arrayContext)
 
-internal fun <T : NDArray> T.asTensor(name: String? = null) = (this as NDArrayCore).asTensor(name)
+internal fun <T : NDArray> T.asTensor(name: String? = null, arrayContext: ArrayContext? = null) = (this as NDArrayCore).asTensor(name, arrayContext)
 
 internal fun <T : NDArray> Collection<T>.asONNXTensors(names: List<String>): List<KITensor> {
     return this.zip(names).map { (data, name) -> data.asTensor(name) }

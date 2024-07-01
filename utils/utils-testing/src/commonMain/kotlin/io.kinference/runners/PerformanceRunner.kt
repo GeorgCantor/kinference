@@ -4,6 +4,8 @@ import io.kinference.*
 import io.kinference.data.ONNXData
 import io.kinference.data.ONNXDataType
 import io.kinference.model.Model
+import io.kinference.ndarray.arrays.NDArrayCore
+import io.kinference.ndarray.arrays.memory.ArrayContext
 import io.kinference.profiler.Profilable
 import io.kinference.utils.*
 import io.kinference.utils.time.Timer
@@ -51,60 +53,63 @@ class PerformanceRunner<T : ONNXData<*, *>>(private val engine: TestEngine<T>) {
 
         val results = ArrayList<PerformanceResults>()
 
-        for (dataset in datasets) {
-            val inputs = dataset.data.map { engine.loadData(it.first, it.second) }
+        withContext(ArrayContext()) {
+            val arrayContext = coroutineContext[ArrayContext.Key]
+            for (dataset in datasets) {
+                val inputs = dataset.data.map { engine.loadData(it.first, it.second) }
 
-            repeat(warmup) {
-                val outputs = model.predict(inputs)
-                outputs.values.forEach { it.close() }
-            }
+                repeat(warmup) {
+                    val outputs = model.predict(inputs)
+                    outputs.values.forEach { it.close() }
+                }
 
-            val times = LongArray(count)
+                val times = LongArray(count)
 
-            if (parallelLoad) {
-                val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
-                val predictions: List<Deferred<Map<String, T>>> = List(count) { i ->
-                    scope.async {
+                if (parallelLoad) {
+                    val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+                    val predictions: List<Deferred<Map<String, T>>> = List(count) { i ->
+                        scope.async {
+                            lateinit var outputs: Map<String, T>
+                            val time = Timer.measure {
+                                outputs = model.predict(inputs, withProfiling)
+                            }.millis
+                            times[i] = time
+                            outputs
+                        }
+                    }
+
+                    val res = predictions.awaitAll()
+                    res.forEach { output ->
+                        output.values.forEach { it.close() }
+                    }
+                } else {
+                    for (i in (0 until count)) {
                         lateinit var outputs: Map<String, T>
                         val time = Timer.measure {
                             outputs = model.predict(inputs, withProfiling)
                         }.millis
                         times[i] = time
-                        outputs
+
+                        outputs.values.forEach { arrayContext?.returnNDArray(it.data as NDArrayCore) }
                     }
                 }
 
-                val res = predictions.awaitAll()
-                res.forEach { output ->
-                    output.values.forEach { it.close() }
-                }
-            } else {
-                for (i in (0 until count)) {
-                    lateinit var outputs: Map<String, T>
-                    val time = Timer.measure {
-                        outputs = model.predict(inputs, withProfiling)
-                    }.millis
-                    times[i] = time
+                results.add(PerformanceResults(dataset.test, times.average(), times.minOrNull()!!, times.maxOrNull()!!))
 
-                    outputs.values.forEach { it.close() }
-                }
-            }
+                if (withProfiling && model is Profilable) {
+                    logger.info {
+                        "Results for ${dataset.test}:" +
+                            (model as Profilable).analyzeProfilingResults().getInfo()
+                    }
 
-            results.add(PerformanceResults(dataset.test, times.average(), times.minOrNull()!!, times.maxOrNull()!!))
-
-            if (withProfiling && model is Profilable) {
-                logger.info {
-                    "Results for ${dataset.test}:" +
-                        (model as Profilable).analyzeProfilingResults().getInfo()
+                    (model as Profilable).resetProfiles()
                 }
 
-                (model as Profilable).resetProfiles()
-            }
+                inputs.forEach { it.close() }
 
-            inputs.forEach { it.close() }
-
-            if (engine is Cacheable) {
-                engine.clearCache()
+                if (engine is Cacheable) {
+                    engine.clearCache()
+                }
             }
         }
 

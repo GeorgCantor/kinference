@@ -16,8 +16,8 @@ import io.kinference.primitives.types.*
 import kotlin.math.*
 
 @GenerateNameFromPrimitives
-internal suspend fun computeGeluPrimitive(input: PrimitiveNDArray, bias: PrimitiveNDArray): MutablePrimitiveNDArray {
-    val output = MutablePrimitiveNDArray(input.strides)
+internal suspend fun computeGeluPrimitive(input: PrimitiveNDArray, bias: PrimitiveNDArray, output: MutablePrimitiveNDArray): MutablePrimitiveNDArray {
+//    val output = MutablePrimitiveNDArray(input.strides)
 
     val inputBlocks = input.array.blocks
     val biasBlocks = bias.array.blocks
@@ -80,4 +80,9 @@ internal suspend fun computeGeluPrimitive(input: PrimitiveNDArray, bias: Primiti
     }
 
     return output
+}
+
+@GenerateNameFromPrimitives
+internal suspend fun computeGeluPrimitive(input: PrimitiveNDArray, bias: PrimitiveNDArray): MutablePrimitiveNDArray {
+    return computeGeluPrimitive(input, bias, MutablePrimitiveNDArray(input.strides))
 }
