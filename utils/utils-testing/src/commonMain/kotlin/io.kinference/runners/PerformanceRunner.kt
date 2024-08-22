@@ -54,7 +54,7 @@ class PerformanceRunner<T : ONNXData<*, *>>(private val engine: TestEngine<T>) {
         val results = ArrayList<PerformanceResults>()
 
         withContext(ArrayContext()) {
-            val arrayContext = coroutineContext[ArrayContext.Key]
+//            val arrayContext = coroutineContext[ArrayContext.Key]
             for (dataset in datasets) {
                 val inputs = dataset.data.map { engine.loadData(it.first, it.second) }
 
@@ -90,7 +90,8 @@ class PerformanceRunner<T : ONNXData<*, *>>(private val engine: TestEngine<T>) {
                         }.millis
                         times[i] = time
 
-                        outputs.values.forEach { arrayContext?.returnNDArray(it.data as NDArrayCore) }
+                        outputs.values.forEach { it.close() }
+//                        outputs.values.forEach { arrayContext?.returnNDArray(it.data as NDArrayCore) }
                     }
                 }
 

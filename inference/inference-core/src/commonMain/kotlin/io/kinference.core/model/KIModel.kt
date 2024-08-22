@@ -42,10 +42,10 @@ class KIModel(val id: String, val name: String, val opSet: OperatorSetRegistry, 
         val arrayContext = coroutineContext[ArrayContext.Key]
         val results = if (arrayContext == null) {
             withContext(ArrayContext()) {
-                graph.execute(input, contexts).also { it.forEach { it.markOutput() } }
+                graph.execute(input, contexts).onEach { it.markOutput() }
             }
         } else {
-            graph.execute(input, contexts).also { it.forEach { it.markOutput() } }
+            graph.execute(input, contexts).onEach { it.markOutput() }
         }
 //        val results = withContext(ArrayContext()) {
 //            graph.execute(input, contexts).also { it.forEach { it.markOutput() } }
